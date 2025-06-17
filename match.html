@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Travel Matches</title>
+  <style>
+    /* match.css */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      text-align: center;
+    }
+
+    h2 {
+      margin-top: 20px;
+      font-size: 2em;
+    }
+
+    #matches-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .match {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 20px;
+      width: 250px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .match h3 {
+      margin-top: 0;
+    }
+
+    .match p {
+      margin: 5px 0;
+    }
+
+    .match ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    .match ul li {
+      margin-bottom: 5px;
+    }
+
+    @media (max-width: 600px) {
+      #matches-container {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h2>Find Your Perfect Travel Companion</h2>
+  <div id="matches-container">
+    <!-- Matches will be displayed here -->
+  </div>
+
+  <script type="module">
+    import { supabase } from './supabase.js';
+
+    // Function to fetch and display potential companions
+    async function findMatches() {
+      const userUID = localStorage.getItem('currentUserUID');
+      
+      // Fetch companion data from Supabase
+      const { data: companions, error } = await supabase
+        .from('companions')
+        .select('*')
+        .neq('user_uid', userUID); // Don't match with yourself
+      
+      if (error) {
+        console.error('Error fetching companions:', error);
+        return;
+      }
+
+      // Get the current user's preferences
+      const currentUserPreferences = await getCurrentUserPreferences();
+
+      // Find matches based on the user's preferences
+      const matches = companions.filter((companion) => {
+        return isMatch(currentUserPreferences, companion);
+      });
+
+      // Display matches
+      const matchesContainer = document.getElementById('matches-container');
+      matches.forEach((match) => {
+        const matchElement = document.createElement('div');
+        matchElement.classList.add('match');
+        
+        matchElement.innerHTML = `
+          <h3>${match.email}</h3>
+          <p>Age Group: ${match.ageGroup}</p>
+          <p>Interests: ${match.interests.join(', ')}</p>
+          <p>Languages: ${match.languages.join(', ')}</p>
+          <p>Travel Style: ${match.travelStyle.join(', ')}</p>
+          <p>Accommodation: ${match.accommodation.join(', ')}</p>
+          <p>Sharing Expenses: ${match.shareExpenses ? 'Yes' : 'No'}</p>
+        `;
+        
+        matchesContainer.appendChild(matchElement);
+      });
+    }
+
+    // Helper function to get current user's preferences from localStorage
+    async function getCurrentUserPreferences() {
+      const userUID = localStorage.getItem('currentUserUID');
+      
+      // Fetch the current user's companion data
+      const { data: userData, error } = await supabase
+        .from('companions')
+        .select('*')
+        .eq('user_uid', userUID)
+        .single(); // Fetch a single entry since it's only for the current user
+      
+      if (error) {
+        console.error('Error fetching current user preferences:', error);
+        return;
+      }
+      
+      return userData;
+    }
+
+    // Helper function to check if two companions match
+    function isMatch(userPreferences, companion) {
+      // Matching based on age group, interests, languages, and travel preferences
+      return (
+        userPreferences.ageGroup === companion.ageGroup &&
+        isArrayMatch(userPreferences.interests, companion.interests) &&
+        isArrayMatch(userPreferences.languages, companion.languages) &&
+        isArrayMatch(userPreferences.travelStyle, companion.travelStyle) &&
+        isArrayMatch(userPreferences.accommodation, companion.accommodation) &&
+        userPreferences.shareExpenses === companion.shareExpenses
+      );
+    }
+
+    // Helper function to check if two arrays have common elements
+    function isArrayMatch(arr1, arr2) {
+      return arr1.some(item => arr2.includes(item));
+    }
+
+    // Call the function to find matches
+    findMatches();
+  </script>
+</body>
+</html>
